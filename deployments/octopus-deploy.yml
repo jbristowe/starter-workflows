@@ -1,0 +1,84 @@
+# This workflow installs the Octopus CLI and configures it to communicate with Octopus. The Octopus CLI is used to
+# perform operations with Octopus, such as to create deployment targets. The workflow also pushes the packages created
+# by a build process to Octopus, along with its associated build information. This information is used to generate
+# DevOps insights through four (4) key DORA metrics (see https://octopus.com/docs/insights for details). Finally, this
+# workflow will create and deploy a relase through Octopus based on the deployment process you define.
+#
+# This workflows requires setting the OCTOPUS_API_KEY secret to the Octopus API key, and setting the OCTOPUS_HOST
+# secret to the address of your Octopus instance.
+#
+# Visit https://octopus.com/start to set up a free trial of Octopus.
+
+name: Deploy with Octopus
+
+on:
+  # https://docs.github.com/en/actions/reference/events-that-trigger-workflows
+  workflow_dispatch:
+
+# environment variables available to all jobs and steps in this workflow
+env:
+  OCTOPUS_HOST: ${{ secrets.OCTOPUS_HOST }}       # address of Octopus instance (i.e. https://samples.octopus.app)
+  OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }} # API key used with Octopus
+  OCTOPUS_SPACE: '<space-name>'                   # space to connect in Octopus (i.e. 'Pattern - Blue-Green')
+
+jobs:
+  deploy:
+    name: Deploy with Octopus
+    runs-on: ubuntu-latest
+    environment: production
+
+    # use Bash for ubuntu-latest, macos-latest, or windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    # checkout the repository to the GitHub Actions runner
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    # install the latest version of the Octopus CLI
+    - name: Install the Octopus CLI 🐙
+      uses: OctopusDeploy/install-octopus-cli-action@v3
+      with:
+        version: latest
+
+    # upload your package(s) to Octopus in preparation for deployment
+    - name: Push packages to Octopus
+      uses: OctopusDeploy/push-package-action@v3
+      env:
+        OCTOPUS_API_KEY: $OCTOPUS_API_TOKEN
+        OCTOPUS_HOST: $OCTOPUS_SERVER_URL
+      with:
+        packages: |
+          package-a.zip
+          package-b.zip
+          package-c.zip
+        overwrite_mode: OverwriteExisting
+
+    # upload build information of your package(s) to Octopus for analysis/insights
+    - name: Push build information to Octopus
+      uses: OctopusDeploy/push-build-information-action@v3
+      env:
+        OCTOPUS_API_KEY: $OCTOPUS_API_TOKEN
+        OCTOPUS_HOST: $OCTOPUS_SERVER_URL
+      with:
+        version: ${{ steps.determine_version.outputs.semVer }}
+        packages: |
+          package-a.zip
+          package-b.zip
+          package-c.zip
+        overwrite_mode: OverwriteExisting
+
+    # create/prepare a release in Octopus for deploying your software
+    - name: Create release in Octopus
+      uses: OctopusDeploy/create-release-action@v3
+      env:
+        OCTOPUS_API_KEY: $OCTOPUS_API_TOKEN
+        OCTOPUS_HOST: $OCTOPUS_SERVER_URL
+      with:
+        project: <project-name>
+        packages: |
+          package-a.zip
+          package-b.zip
+          package-c.zip
