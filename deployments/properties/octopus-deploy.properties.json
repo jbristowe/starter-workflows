@@ -1,0 +1,7 @@
+{
+    "name": "Octopus Deploy",
+    "description": "Deploy with Octopus.",
+    "creator": "Octopus Deploy",
+    "iconName": "octopus-deploy",
+    "categories": ["Deployment"]
+}
